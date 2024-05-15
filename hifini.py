@@ -13,16 +13,8 @@ import sys
 import time
 requests.packages.urllib3.disable_warnings()
 
-
-def start(cookie):
-    max_retries = 20
-    retries = 0
-    msg = ""
-    while retries < max_retries:
-        try:
-            msg += "第{}次执行签到\n".format(str(retries+1))
-            sign_in_url = "https://www.hifini.com/sg_sign.htm"
-            headers = {
+def getHeader(cookie):
+    return  {
                 'Cookie': cookie,
                 'authority': 'www.hifini.com',
                 'accept': 'text/plain, */*; q=0.01',
@@ -38,7 +30,39 @@ def start(cookie):
                 'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
                 'x-requested-with': 'XMLHttpRequest',
             }
-            rsp = requests.post(url=sign_in_url, headers=headers,
+
+def getSign(cookie):
+    sign_in_url = "https://www.hifini.com/sg_sign.htm"
+    headers = getHeader(cookie)
+    rsp = requests.get(url=sign_in_url, headers=headers,
+                                timeout=15, verify=False)
+    rsp_text = rsp.text.strip()
+    pattern = r'var\s+sign\s*=\s*"([a-f0-9]+)";'
+    match = re.search(pattern,  rsp_text)
+
+    if match:
+        sign_value = match.group(1)
+        return sign_value
+    else:
+        return None 
+
+def start(cookie):
+    max_retries = 20
+    retries = 0
+    msg = ""
+    sign = getSign(cookie)
+    if sign is None:
+        print("签到结果未拿到Sign")
+        send("hifini 签到结果 ",  "未拿到Sign")
+        return
+
+    while retries < max_retries:
+        try:
+            msg += "第{}次执行签到\n".format(str(retries+1))
+            sign_in_url = "https://www.hifini.com/sg_sign.htm"
+            headers = getHeader(cookie)
+            
+            rsp = requests.post(url=sign_in_url, data={'sign': sign}, headers=headers,
                                 timeout=15, verify=False)
             rsp_text = rsp.text.strip()
             # print(rsp_text)
